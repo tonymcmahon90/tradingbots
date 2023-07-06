@@ -1,6 +1,10 @@
+// 6th July 2023
+// click trade calculates lotsize 
+
 #property strict
 
 input double riskpercent=1; // Risk %
+input double cashrisk=0; // Cash risk or 0 to use % risk 
 input int slippage=10; // Slippage
 
 enum _mode{NO,ENTRY,STOPLOSS,TAKEPROFIT,EXPIRY} mode;
@@ -89,7 +93,9 @@ void ShowLotsize()
    Print("Price difference ",DoubleToString(price_difference,_Digits)," Ticks ",ticks);
    
    // ideal lotsize
-   double risk_money=AccountBalance()*riskpercent*0.01; // risk in money
+   double risk_money=0;
+   if(cashrisk!=0) risk_money=cashrisk; else risk_money=AccountBalance()*riskpercent*0.01; // risk in money
+   
    double tick_value=SymbolInfoDouble(Symbol(),SYMBOL_TRADE_TICK_VALUE);
    double ideal_lotsize=risk_money/(tick_value*ticks);
    
@@ -114,6 +120,7 @@ void ShowLotsize()
    
    if(takeprofit!=0)
    {
+      if(!OrderCheck()) return; 
       double takeprofit_ratio=NormalizeDouble(MathAbs(entry-takeprofit),_Digits)/price_difference;   
       Print("Useable lotsize ",lotsize," Risk ",DoubleToString(risk,2)," Take profit ",DoubleToString(risk*takeprofit_ratio,2) );
    }
@@ -169,4 +176,12 @@ void PlaceTrade()
       return;
    }  
       
+}
+
+bool OrderCheck() // check order for correct takeprofit 
+{
+   if(stoploss<entry && takeprofit<entry){ Print("Takeprofit wrong place"); return false; }
+   if(stoploss>entry && takeprofit>entry){ Print("Takeprofit wrong place"); return false; }
+   
+   return true;
 }
