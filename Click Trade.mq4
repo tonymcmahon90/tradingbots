@@ -1,5 +1,7 @@
 // 6th July 2023
 // click trade calculates lotsize 
+// 8th July 2023
+// added drag and drop and change in properties and other way to calculate take profit reward
 
 #property strict
 
@@ -17,7 +19,7 @@ int OnInit()
    chartid=ChartID();
    ObjectCreate(chartid,"stoploss",OBJ_HLINE,0,0,0);
    ObjectSetInteger(chartid,"stoploss",OBJPROP_COLOR,clrRed);
-   ObjectSetInteger(chartid,"stoploss",OBJPROP_STYLE,STYLE_DOT);
+   ObjectSetInteger(chartid,"stoploss",OBJPROP_STYLE,STYLE_DOT);   
    ObjectCreate(chartid,"entry",OBJ_HLINE,0,0,0);
    ObjectSetInteger(chartid,"entry",OBJPROP_COLOR,clrBlue);
    ObjectSetInteger(chartid,"entry",OBJPROP_STYLE,STYLE_DOT);
@@ -27,7 +29,6 @@ int OnInit()
    ObjectCreate(chartid,"expiry",OBJ_VLINE,0,0,0);
    ObjectSetInteger(chartid,"expiry",OBJPROP_COLOR,clrRed);
    ObjectSetInteger(chartid,"expiry",OBJPROP_STYLE,STYLE_DOT);
-   
    return(INIT_SUCCEEDED);
 }
 void OnDeinit(const int reason)
@@ -68,6 +69,14 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       if(mode==TAKEPROFIT){ takeprofit=NormalizeDouble(price,_Digits); Print("New takeprofit ",DoubleToString(takeprofit,_Digits)); ObjectSetDouble(chartid,"takeprofit",OBJPROP_PRICE,takeprofit); ShowLotsize(); mode=NO; }
       if(mode==EXPIRY){ expiry=time; Print("New expiry ",TimeToString(expiry,TIME_DATE|TIME_MINUTES)); ObjectSetInteger(chartid,"expiry",OBJPROP_TIME,expiry); mode=NO; }
    }
+   
+   if(id==CHARTEVENT_OBJECT_CHANGE || id==CHARTEVENT_OBJECT_DRAG)
+   {
+      if(sparam=="entry"){ entry=NormalizeDouble(ObjectGetDouble(chartid,"entry",OBJPROP_PRICE),_Digits); Print("New entry ",DoubleToString(entry,_Digits)); ShowLotsize(); mode=NO; }
+      if(sparam=="stoploss"){ stoploss=NormalizeDouble(ObjectGetDouble(chartid,"stoploss",OBJPROP_PRICE),_Digits); Print("New stoploss ",DoubleToString(stoploss,_Digits)); ShowLotsize(); mode=NO; }
+      if(sparam=="takeprofit"){ takeprofit=NormalizeDouble(ObjectGetDouble(chartid,"takeprofit",OBJPROP_PRICE),_Digits); Print("New takeprofit ",DoubleToString(takeprofit,_Digits)); ShowLotsize(); mode=NO; }
+      if(sparam=="expiry"){ expiry=(datetime)ObjectGetInteger(chartid,"expiry",OBJPROP_TIME); Print("New expiry ",TimeToString(expiry,TIME_DATE|TIME_MINUTES)); mode=NO; }
+   }
 
 }
 
@@ -89,8 +98,8 @@ void ShowLotsize()
    
    // difference in price , ticks
    double price_difference=NormalizeDouble(MathAbs(entry-stoploss),_Digits);
-   double ticks=NormalizeDouble(price_difference/SymbolInfoDouble(Symbol(),SYMBOL_TRADE_TICK_SIZE),_Digits);
-   Print("Price difference ",DoubleToString(price_difference,_Digits)," Ticks ",ticks);
+   double ticks=NormalizeDouble(price_difference/SymbolInfoDouble(Symbol(),SYMBOL_TRADE_TICK_SIZE),_Digits); // always a whole number 
+   Print("Price difference ",DoubleToString(price_difference,_Digits)," Ticks ",ticks," Tick size ",NormalizeDouble(SymbolInfoDouble(Symbol(),SYMBOL_TRADE_TICK_SIZE),_Digits) );
    
    // ideal lotsize
    double risk_money=0;
@@ -121,8 +130,14 @@ void ShowLotsize()
    if(takeprofit!=0)
    {
       if(!OrderCheck()) return; 
+      
       double takeprofit_ratio=NormalizeDouble(MathAbs(entry-takeprofit),_Digits)/price_difference;   
-      Print("Useable lotsize ",lotsize," Risk ",DoubleToString(risk,2)," Take profit ",DoubleToString(risk*takeprofit_ratio,2) );
+      // other method to calculate take profit reward
+      double takeprofit_ticks=NormalizeDouble(MathAbs(entry-takeprofit)/SymbolInfoDouble(Symbol(),SYMBOL_TRADE_TICK_SIZE),_Digits);
+      double takeprofit_reward=lotsize*tick_value*takeprofit_ticks;
+      
+      Print("Useable lotsize ",lotsize," Risk ",DoubleToString(risk,2)," Take profit Ratio 1:",DoubleToString(takeprofit_ratio,3),
+      " Take profit reward ",DoubleToString(risk*takeprofit_ratio,2)); //," Reward ",DoubleToString(takeprofit_reward,2) );
    }
    else
       Print("Useable lotsize ",lotsize," Risk ",DoubleToString(risk,2) );
