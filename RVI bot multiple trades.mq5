@@ -1,5 +1,6 @@
 // fast version [1],[2] is optionally [0],[1] _now
 // multiple trades, buy and sell signals place trades then scan for magic number to close on signals 
+// main slope or crossover RVI
 
 #include <Trade/Trade.mqh> // Standard Library Trade Class
 CTrade trade;
@@ -18,6 +19,8 @@ input int ema_period=10; // EMA period
 input ENUM_APPLIED_PRICE ema_price=PRICE_TYPICAL; // EMA price
 input group "RVI"
 input int rvi_period=10; // RVI period
+enum rvi_m{Crossover,Slope};
+input rvi_m _mode=Slope; // RVI signal mode
 input group "Level filter"
 input bool level_filter=true; // Use level filter
 input double buy_level=-0.1; // Buy level
@@ -33,21 +36,25 @@ int OnInit()
    hRVI=iRVI(Symbol(),PERIOD_CURRENT,rvi_period);
    ArraySetAsSeries(bRVImain,true); 
    ArraySetAsSeries(bRVIsignal,true);     
-   if(fast_mode) _now=0; else _now=1;   
+   if(fast_mode) _now=0; else _now=1; // fast is [0],[1] slower is [1],[2] signal 
    return(INIT_SUCCEEDED);
 }
 
 bool RVIBuy()
 {
    if(bRVImain[_now]>buy_level && level_filter) return false;
-   if(bRVImain[_now]>bRVIsignal[_now] && bRVImain[_now+1]<bRVIsignal[_now+1]) return true; 
+   
+   if(_mode==Crossover){ if(bRVImain[_now]>bRVIsignal[_now] && bRVImain[_now+1]<bRVIsignal[_now+1]) return true; }
+   else if(_mode==Slope){ if(bRVImain[_now]>bRVImain[_now+1]) return true; }
    return false;
 }
 
 bool RVISell()
 {
    if(bRVImain[_now]<sell_level && level_filter) return false;
-   if(bRVImain[_now]<bRVIsignal[_now] && bRVImain[_now+1]>bRVIsignal[_now+1]) return true; 
+   
+   if(_mode==Crossover){ if(bRVImain[_now]<bRVIsignal[_now] && bRVImain[_now+1]>bRVIsignal[_now+1]) return true; }
+   else if(_mode==Slope){ if(bRVImain[_now]<bRVImain[_now+1]) return true; }    
    return false;
 }
 
@@ -55,17 +62,17 @@ void OnTick()
 {  
    double entry,_stop,_tp;
    
-   CopyBuffer(hMA,0,0,3,bMA);
+   CopyBuffer(hMA,0,0,3,bMA); // [0],[1],[2] 
    CopyBuffer(hRVI,0,0,3,bRVImain);
    CopyBuffer(hRVI,1,0,3,bRVIsignal);
    
-   static bool placed_trade=false; // one trade per candle
+   static bool placed_trade=false; // one trade per candle if multiple trades 
    static datetime _t=iTime(NULL,0,0);
    if(iTime(NULL,0,0)!=_t){ if(multi_trades)placed_trade=false; _t=iTime(NULL,0,0); } // reset
    
    if(RVIBuy() && placed_trade==false) // one trade per candle 
    {
-      if(bMA[1]>bMA[2] || ema_filter==false) // want slope up trend
+      if(bMA[_now]>bMA[_now+1] || ema_filter==false) // want slope up trend ( was [1],[2] now [_now],[_now+1] could do ema_fast_mode=true
       { 
          entry=SymbolInfoDouble(Symbol(),SYMBOL_ASK);
          if(_stoploss!=0)_stop=entry-(_stoploss*_Point); else _stop=0;
@@ -81,7 +88,7 @@ void OnTick()
           
    if(RVISell() && placed_trade==false)   
    {
-      if(bMA[1]<bMA[2] || ema_filter==false)
+      if(bMA[_now]<bMA[_now+1] || ema_filter==false)
       {
          entry=SymbolInfoDouble(Symbol(),SYMBOL_BID);
          if(_stoploss!=0)_stop=entry+(_stoploss*_Point); else _stop=0;
