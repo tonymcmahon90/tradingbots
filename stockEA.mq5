@@ -32,7 +32,7 @@ void OnTick()
             
    if(_ticket==0)
    {   
-      if(bStochMain[1]>buyat && bStochMain[2]<buyat && iClose(NULL,0,1)>bMA[1])
+      if(bStochMain[1]>buyat && bStochMain[2]<buyat && iClose(NULL,0,1)>bMA[1] && bMA[1]>bMA[2])
       {
          entry=SymbolInfoDouble(Symbol(),SYMBOL_ASK);
          if(_sl)stoploss=entry-(_sl*_Point);
@@ -42,7 +42,7 @@ void OnTick()
          }
       }
    
-      if(bStochMain[1]<sellat && bStochMain[2]>sellat && iClose(NULL,0,1)<bMA[1])
+      if(bStochMain[1]<sellat && bStochMain[2]>sellat && iClose(NULL,0,1)<bMA[1] && bMA[1]<bMA[2])
       {
          entry=SymbolInfoDouble(Symbol(),SYMBOL_BID);
          if(_sl)stoploss=entry+(_sl*_Point);
