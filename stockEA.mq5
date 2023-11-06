@@ -4,16 +4,20 @@ CTrade trade;
 int hStoch,hMA;
 double bStochMain[],bMA[];
 
+input int _sl=500; // stoploss points
 input double buyat=20;
 input double sellat=80;
+input double buyexit=75;
+input double sellexit=25;
 input double lotsize=0.1;
+input int ma=30; // MA period
 
 ulong _ticket,_type;
 
 int OnInit()
 {
    hStoch=iStochastic(NULL,0,5,3,3,MODE_SMA,STO_LOWHIGH);
-   hMA=iMA(NULL,0,100,0,MODE_SMA,PRICE_TYPICAL);
+   hMA=iMA(NULL,0,ma,0,MODE_SMA,PRICE_TYPICAL);
    ArraySetAsSeries(bStochMain,true); 
    ArraySetAsSeries(bMA,true); 
    return(INIT_SUCCEEDED);
@@ -31,6 +35,7 @@ void OnTick()
       if(bStochMain[1]>buyat && bStochMain[2]<buyat && iClose(NULL,0,1)>bMA[1])
       {
          entry=SymbolInfoDouble(Symbol(),SYMBOL_ASK);
+         if(_sl)stoploss=entry-(_sl*_Point);
          if(trade.Buy(lotsize,Symbol(),entry,stoploss,takeprofit,NULL))
          {
             if(trade.ResultRetcode()==TRADE_RETCODE_DONE) _ticket=trade.ResultOrder();
@@ -40,6 +45,7 @@ void OnTick()
       if(bStochMain[1]<sellat && bStochMain[2]>sellat && iClose(NULL,0,1)<bMA[1])
       {
          entry=SymbolInfoDouble(Symbol(),SYMBOL_BID);
+         if(_sl)stoploss=entry+(_sl*_Point);
          if(trade.Sell(lotsize,Symbol(),entry,stoploss,takeprofit,NULL))
          {
             if(trade.ResultRetcode()==TRADE_RETCODE_DONE) _ticket=trade.ResultOrder();
@@ -54,13 +60,13 @@ void OnTick()
    
       if(_type==POSITION_TYPE_BUY)
       {
-         if(bStochMain[1]>sellat && bStochMain[2]<sellat)         
+         if(bStochMain[1]>buyexit && bStochMain[2]<buyexit)         
             if(trade.PositionClose(_ticket)){ _ticket=0; return; } // close
       }
       
       if(_type==POSITION_TYPE_SELL)
       {
-         if(bStochMain[1]<buyat && bStochMain[2]>buyat)
+         if(bStochMain[1]<sellexit && bStochMain[2]>sellexit)
             if(trade.PositionClose(_ticket)){ _ticket=0; return; } // close
       }
    }   
